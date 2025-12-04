@@ -34,6 +34,7 @@ enum led_indices {
 enum custom_keycodes {
 	KC_MODE = NEW_SAFE_RANGE,
 	KC_FAKEALT,
+	KC_FAKESUPER,
 };
 
 
@@ -51,7 +52,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 	KC_TAB,   KC_Q,     KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,     KC_U,     KC_I,     KC_O,     KC_P,     KC_LBRC,  KC_RBRC,           KC_DEL,    KC_END,   KC_PGDN,
 	KC_CAPS,  KC_A,     KC_S,     KC_D,     KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,  KC_NUHS,  KC_ENT,
 	KC_LSFT,  KC_NUBS,  KC_Z,     KC_X,     KC_C,     KC_V,     KC_B,     KC_N,     KC_M,     KC_COMM,  KC_DOT,   KC_SLSH,            KC_RSFT,            KC_UP,
-	KC_LCTL,  KC_FAKEALT, KC_LCMMD,                               KC_SPC,                                 KC_RCMMD, KC_ROPTN, MO(MAC_FN),KC_RCTL,  KC_LEFT,  KC_DOWN,  KC_RGHT),
+	KC_LCTL,  KC_FAKEALT, KC_FAKESUPER,                               KC_SPC,                                 KC_RCMMD, KC_ROPTN, MO(MAC_FN),KC_RCTL,  KC_LEFT,  KC_DOWN,  KC_RGHT),
 
 [MAC_FN] = LAYOUT_tkl_iso(
 	KC_TRNS,  KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,   KC_F12,             KC_TRNS,  KC_TRNS,  RGB_TOG,
@@ -126,11 +127,12 @@ void AltNumberShortcut(uint16_t keycode)
 }
 
 bool fakeAltIsDown = false;
+bool superIsDown = false;
 
 bool process_record_user(uint16_t keycode, keyrecord_t* record)
 {
 	currentMods = get_mods();
-	bool superDown = get_mods() & MOD_BIT(KC_LCTL);
+	// bool superDown = get_mods() & MOD_BIT(KC_LCTL);
 	// bool altDown = get_mods() & MOD_BIT(KC_LALT);
 	// os_variant_t os = detected_host_os();
 	bool pressed = record->event.pressed;
@@ -144,11 +146,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 	
 	if (/*os != OS_MACOS*/ remapMode) {
 		// Swap super and ctrl
-		if (keycode == KC_LCMMD) {
-			if (record->event.pressed) {
+		if (keycode == KC_FAKESUPER) {
+			superIsDown = pressed;
+			if (pressed) {
 				register_code(KC_LCTL);
 			} else {
 				unregister_code(KC_LCTL);
+				unregister_code(KC_HOME);
+				unregister_code(KC_END);
 			}
 			return false;
 		}
@@ -164,15 +169,17 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 
 		if (keycode == KC_FAKEALT) {
 			fakeAltIsDown = record->event.pressed;
-			if (!pressed) {
-				unregister_code(KC_LCTL);
-			}
-			// if (pressed) {
-			// 	register_code(KC_LCTL);
-			// } else {
-			// 	// unregister_code(KC_LCTL);
+			// if (!pressed) {
 			// 	unregister_code(KC_LCTL);
 			// }
+			if (pressed) {
+				register_code(KC_LALT);
+			} else {
+				unregister_code(KC_LALT);
+				if (!superIsDown) {
+					unregister_code(KC_LCTL);
+				}
+			}
 			return false;
 		}
 
@@ -187,49 +194,66 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 
 		switch (keycode) {
 			case KC_LEFT:
-				if (fakeAltIsDown) {
+				if (superIsDown) {
 					if (pressed) {
-						register_code(KC_LCTL);
-						register_code(KC_LEFT);
+						del_mods(MOD_BIT(KC_LCTL));
+						register_code(KC_HOME);
 					} else {
-						unregister_code(KC_LEFT);
-						unregister_code(KC_LCTL);
+						unregister_code(KC_HOME);
+						add_mods(MOD_BIT(KC_LCTL));
 					}
 					return false;
+				}
+				if (fakeAltIsDown) {
+					if (pressed) {
+						del_mods(MOD_BIT(KC_LALT));
+						add_mods(MOD_BIT(KC_LCTL));
+					} else {
+						del_mods(MOD_BIT(KC_LCTL));
+						add_mods(MOD_BIT(KC_LALT));
+					}
+					return true; // continue normal key event
 				}
 				break;
 
 			case KC_RIGHT:
-				if (fakeAltIsDown) {
+				if (superIsDown) {
 					if (pressed) {
-						register_code(KC_LCTL);
-						register_code(KC_RIGHT);
+						del_mods(MOD_BIT(KC_LCTL));
+						register_code(KC_END);
 					} else {
-						unregister_code(KC_RIGHT);
-						unregister_code(KC_LCTL);
+						unregister_code(KC_END);
+						add_mods(MOD_BIT(KC_LCTL));
 					}
 					return false;
+				}
+				if (fakeAltIsDown) {
+					if (pressed) {
+						del_mods(MOD_BIT(KC_LALT));
+                        add_mods(MOD_BIT(KC_LCTL));
+					} else {
+						del_mods(MOD_BIT(KC_LCTL));
+						add_mods(MOD_BIT(KC_LALT));
+					}
+					return true; // continue normal key event
 				}
 				break;
 
 			case KC_UP:
-				if (superDown && pressed) {
-					if (fakeAltIsDown) {
-						tap_code16(A(KC_UP));
-					} else {
-						tap_code(KC_HOME);
-					}
+				if (superIsDown && !fakeAltIsDown && pressed) {
+					tap_code(KC_HOME);
 					return false;
 				}
 				break;
 
 			case KC_DOWN:
-				if (superDown && pressed) {
-					if (fakeAltIsDown) {
-						tap_code16(A(KC_DOWN));
-					} else {
-						tap_code(KC_END);
-					}
+				if (superIsDown && !fakeAltIsDown && pressed) {
+					// if (fakeAltIsDown) {
+					// 	tap_code16(A(KC_DOWN));
+					// } else {
+					// 	tap_code(KC_END);
+					// }
+					tap_code(KC_END);
 					return false;
 				}
 				break;
@@ -285,32 +309,37 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 					return false;
 				}
 				break;
+
+            default:
 		}
 
-		if (superDown && record->event.pressed) {
+		if (superIsDown && record->event.pressed) {
 			// if (superDown) {
 				switch (keycode) {
 					// Home/End shortcuts
-					case KC_LEFT:
-						if (superDown) {
-							// unregister_mods(MOD_BIT(KC_LCTL));
-							unregister_code(KC_LCTL);
-							tap_code(KC_HOME);
-							register_code(KC_LCTL);
-							// register_mods(MOD_BIT(KC_LCTL));
-							return false;
-						}
-						break;
-					case KC_RIGHT:
-						if (superDown && !fakeAltIsDown) {
-							// unregister_mods(MOD_BIT(KC_LCTL));
-							unregister_code(KC_LCTL);
-							tap_code(KC_END);
-							register_code(KC_LCTL);
-							// register_mods(MOD_BIT(KC_LCTL));
-							return false;
-						}
-						break;
+					// case KC_LEFT:
+					// 	if (superDown) {
+					// 		// unregister_mods(MOD_BIT(KC_LCTL));
+					// 		// unregister_code(KC_LCTL);
+					// 		uint8_t mods = get_mods();
+					// 		del_mods(mods);
+					// 		register_code(KC_HOME);
+					// 		set_mods(mods);
+					// 		// register_code(KC_LCTL);
+					// 		// register_mods(MOD_BIT(KC_LCTL));
+					// 		return false;
+					// 	}
+					// 	break;
+					// case KC_RIGHT:
+					// 	if (superDown && !fakeAltIsDown) {
+					// 		// unregister_mods(MOD_BIT(KC_LCTL));
+					// 		unregister_code(KC_LCTL);
+					// 		tap_code(KC_END);
+					// 		register_code(KC_LCTL);
+					// 		// register_mods(MOD_BIT(KC_LCTL));
+					// 		return false;
+					// 	}
+					// 	break;
 
 					// Jump Top/Bottom shortcuts
 					// case KC_UP:
@@ -330,14 +359,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 
 					// Alt-Tab shortcut
 					case KC_TAB:
-						if (superDown) {
+						// if (superDown) {
 							unregister_mods(MOD_BIT(KC_LCTL));
 							register_mods(MOD_BIT(KC_LALT));
 							tap_code(KC_TAB);
 							unregister_mods(MOD_BIT(KC_LALT));
 							register_mods(MOD_BIT(KC_LCTL));
 							return false;
-						}
+						// }
 						break;
 
 					// Delete line shortcuts
@@ -348,7 +377,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 						// unregister_mods(MOD_BIT(KC_LCTL));
 						// register_mods(MOD_BIT(KC_LCMD));
 
-						if (superDown) {
+						// if (superDown) {
 							set_mods(MOD_BIT(KC_LSFT));
 							tap_code(KC_HOME);
 							tap_code(KC_HOME);
@@ -356,11 +385,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 							set_mods(currentMods);
 							send_keyboard_report();
 							return false;
-						}
+						// }
 						break;
 
 					case KC_DEL:
-						if (superDown) {
+						// if (superDown) {
 							set_mods(MOD_BIT(KC_LSFT));
 							tap_code(KC_END);
 							tap_code(KC_END);
@@ -368,7 +397,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 							set_mods(currentMods);
 							send_keyboard_report();
 							return false;
-						}
+						// }
 						break;
 				}
 			// }
@@ -429,6 +458,15 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 		}
 	} else {
 		// Normal Mac mode
+		if (keycode == KC_FAKESUPER) {
+			if (pressed) {
+				register_code(KC_LGUI);
+			} else {
+				unregister_code(KC_LGUI);
+			}
+			return false;
+		}
+
 		if (keycode == KC_FAKEALT) {
 			if (record->event.pressed) {
 				register_code(KC_LALT);
