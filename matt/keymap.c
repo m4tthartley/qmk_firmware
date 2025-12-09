@@ -183,14 +183,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 			return false;
 		}
 
-		if (keycode == KC_ROPTN) {
-			if (pressed) {
-				register_code(KC_LALT);
-			} else {
-				unregister_code(KC_LALT);
-			}
-			return false;
-		}
+		// if (keycode == KC_ROPTN) {
+		// 	if (pressed) {
+		// 		register_code(KC_LALT);
+		// 	} else {
+		// 		unregister_code(KC_LALT);
+		// 	}
+		// 	return false;
+		// }
 
 		switch (keycode) {
 			case KC_LEFT:
@@ -284,29 +284,37 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record)
 				}
 				break;
 
-			case KC_2:
-				if (fakeAltIsDown) {
-					if (pressed) {
-						register_code(KC_RALT);
-						register_code(KC_2);
-					} else {
-						unregister_code(KC_2);
-						unregister_code(KC_RALT);
-					}
-					return false;
-				}
-				break;
+			// case KC_2:
+			// 	if (fakeAltIsDown) {
+			// 		if (pressed) {
+			// 			register_code(KC_RALT);
+			// 			register_code(KC_2);
+			// 		} else {
+			// 			unregister_code(KC_2);
+			// 			unregister_code(KC_RALT);
+			// 		}
+			// 		return false;
+			// 	}
+			// 	break;
 
 			case KC_3:
 				if (fakeAltIsDown) {
 					if (pressed) {
-						register_code(KC_RALT);
-						register_code(KC_3);
+						del_mods(MOD_BIT(KC_LALT));
+                        add_mods(MOD_BIT(KC_RALT));
 					} else {
-						unregister_code(KC_3);
-						unregister_code(KC_RALT);
+						del_mods(MOD_BIT(KC_RALT));
+						add_mods(MOD_BIT(KC_LALT));
 					}
-					return false;
+					return true;
+					// if (pressed) {
+					// 	register_code(KC_RALT);
+					// 	register_code(KC_3);
+					// } else {
+					// 	unregister_code(KC_3);
+					// 	unregister_code(KC_RALT);
+					// }
+					// return false;
 				}
 				break;
 
